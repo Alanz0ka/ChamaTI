@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block titulo %}Atendimento{% endblock %}
+
+{% block conteudo %}
+<div class="cabecalho-pagina">
+  <h1>Painel de atendimento</h1>
+  <p>Visão centralizada dos chamados da equipe de TI.</p>
+</div>
+
+<section class="indicadores">
+  <div class="indicador azul">
+    <div class="rotulo">Pendentes</div>
+    <div class="valor" id="ind-pendentes">—</div>
+  </div>
+  <div class="indicador ambar">
+    <div class="rotulo">Em análise</div>
+    <div class="valor" id="ind-analise">—</div>
+  </div>
+  <div class="indicador verde">
+    <div class="rotulo">Concluídos</div>
+    <div class="valor" id="ind-concluidos">—</div>
+  </div>
+  <div class="indicador cinza">
+    <div class="rotulo">Tempo médio de atendimento</div>
+    <div class="valor" id="ind-tempo">—</div>
+  </div>
+</section>
+
+<div class="aviso" id="aviso"></div>
+
+<section class="kanban">
+  <div class="coluna">
+    <h3><span class="badge status-aberto">Aberto</span> <span class="contador" id="cont-aberto">0</span></h3>
+    <div class="coluna-corpo" id="col-aberto"></div>
+  </div>
+  <div class="coluna">
+    <h3><span class="badge status-analise">Em análise</span> <span class="contador" id="cont-analise">0</span></h3>
+    <div class="coluna-corpo" id="col-analise"></div>
+  </div>
+  <div class="coluna">
+    <h3><span class="badge status-concluido">Concluído</span> <span class="contador" id="cont-concluido">0</span></h3>
+    <div class="coluna-corpo" id="col-concluido"></div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/atendimento.js') }}"></script>
+{% endblock %}

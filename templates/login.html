@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar · ChamaTI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="marca">Chama<span class="ponto">TI</span></div>
+      <p class="subtitulo">Sistema de chamados de suporte de TI</p>
+
+      <div class="aviso" id="aviso"></div>
+
+      <form id="form-login" novalidate>
+        <div class="campo">
+          <label for="usuario">E-mail ou usuário institucional</label>
+          <input type="text" id="usuario" name="usuario" autocomplete="username"
+                 placeholder="nome@uncisal.edu.br">
+        </div>
+        <div class="campo">
+          <label for="senha">Senha</label>
+          <input type="password" id="senha" name="senha" autocomplete="current-password"
+                 placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primario">Entrar</button>
+        <a href="#" class="esqueci" id="esqueci">Esqueci minha senha</a>
+      </form>
+
+      <div class="dica-demo">
+        <strong>Acesso de demonstração</strong><br>
+        Colaborador: <code>colaborador@uncisal.edu.br</code><br>
+        Técnico: <code>tecnico@uncisal.edu.br</code><br>
+        Senha para ambos: <code>123456</code>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='js/comum.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/login.js') }}"></script>
+</body>
+</html>

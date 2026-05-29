@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block titulo %}Abrir chamado{% endblock %}
+
+{% block conteudo %}
+<div class="cabecalho-pagina">
+  <h1>Abrir chamado</h1>
+  <p>Descreva sua solicitação de suporte. Os campos marcados com <span style="color:#dc2626">*</span> são obrigatórios.</p>
+</div>
+
+<div class="cartao" style="max-width:720px">
+  <div class="aviso" id="aviso"></div>
+
+  <form id="form-chamado" novalidate>
+    <div class="linha">
+      <div class="campo" id="campo-categoria">
+        <label for="categoria">Categoria <span class="obrigatorio">*</span></label>
+        <select id="categoria" name="categoria">
+          <option value="">Selecione...</option>
+        </select>
+        <div class="mensagem-erro" data-erro="categoria"></div>
+      </div>
+
+      <div class="campo" id="campo-urgencia">
+        <label for="urgencia">Urgência <span class="obrigatorio">*</span></label>
+        <select id="urgencia" name="urgencia">
+          <option value="">Selecione...</option>
+        </select>
+        <div class="mensagem-erro" data-erro="urgencia"></div>
+      </div>
+    </div>
+
+    <div class="campo" id="campo-assunto">
+      <label for="assunto">Assunto <span class="obrigatorio">*</span>
+        <span class="dica">(mínimo de 5 caracteres)</span></label>
+      <input type="text" id="assunto" name="assunto" maxlength="120"
+             placeholder="Ex.: Erro ao acessar o sistema de folha de ponto">
+      <div class="mensagem-erro" data-erro="assunto"></div>
+    </div>
+
+    <div class="campo" id="campo-descricao">
+      <label for="descricao">Descrição detalhada <span class="obrigatorio">*</span>
+        <span class="dica">(mínimo de 10 caracteres)</span></label>
+      <textarea id="descricao" name="descricao"
+                placeholder="Explique o que aconteceu, quando começou e o que você já tentou."></textarea>
+      <div class="mensagem-erro" data-erro="descricao"></div>
+    </div>
+
+    <div class="campo">
+      <label>Anexo <span class="dica">(opcional)</span></label>
+      <div class="anexo" id="area-anexo">
+        <strong>Clique para anexar um arquivo</strong>
+        <div id="anexo-info">Formatos aceitos: PNG, JPG, PDF · até 5 MB</div>
+      </div>
+      <input type="file" id="anexo" accept=".png,.jpg,.jpeg,.pdf" hidden>
+    </div>
+
+    <div class="botoes">
+      <button type="button" class="btn btn-secundario" id="btn-cancelar">Cancelar</button>
+      <button type="submit" class="btn btn-primario" id="btn-enviar">Abrir chamado</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/abrir.js') }}"></script>
+{% endblock %}

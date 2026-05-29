@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block titulo %}Base de conhecimento{% endblock %}
+
+{% block conteudo %}
+<div class="cabecalho-pagina">
+  <h1>Base de conhecimento</h1>
+  <p>Encontre soluções para problemas frequentes sem precisar abrir um chamado.</p>
+</div>
+
+<div class="busca-destaque">
+  <input type="search" id="busca" placeholder="Buscar artigos (ex.: senha, VPN, impressora)...">
+</div>
+
+<div class="filtros" id="categorias">
+  <button class="filtro ativo" data-categoria="">Todas as categorias</button>
+</div>
+
+<div class="lista-artigos" id="lista"></div>
+<div class="vazio" id="vazio" style="display:none">Nenhum artigo encontrado para a sua busca.</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/base.js') }}"></script>
+{% endblock %}
