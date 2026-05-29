@@ -10,6 +10,8 @@ O sistema atende dois perfis de usuário:
   consulta os detalhes das próprias solicitações.
 - **Técnico de TI** — vê todos os chamados no painel (Kanban), filtra os que estão
   atribuídos a si, assume, atualiza o status e consulta o detalhe (incluindo anexos).
+  Também pode **abrir chamados** e **cadastrar novos usuários** (colaboradores ou
+  técnicos), definindo o perfil de cada um.
 
 ## Funcionalidades
 
@@ -50,6 +52,7 @@ ChamaTI/
 │   ├── meus_chamados.html       # Tela 3 — Meus chamados (RF03)
 │   ├── atendimento.html         # Tela 4 — Atendimento / Kanban (RF04)
 │   ├── chamado_detalhe.html     # Detalhe do chamado (com anexo)
+│   ├── usuarios.html            # Cadastro/listagem de usuários (técnico)
 │   └── base_conhecimento.html   # Tela 5 — Base de conhecimento (RF05)
 ├── static/
 │   ├── css/styles.css           # Design system (cores, tipografia, componentes)
@@ -89,6 +92,9 @@ A aplicação sobe em **http://localhost:5000**.
 
 ### Usuários de demonstração
 
+Por segurança, estas credenciais **não aparecem na tela de login** — ficam apenas
+nesta documentação:
+
 | Perfil | E-mail (ou usuário) | Senha |
 |--------|---------------------|-------|
 | Colaborador | `colaborador@uncisal.edu.br` | `123456` |
@@ -96,6 +102,12 @@ A aplicação sobe em **http://localhost:5000**.
 
 O login também aceita apenas o usuário institucional (parte antes do `@`),
 por exemplo `tecnico`.
+
+### Cadastro de novos usuários
+
+Ao entrar como **técnico**, o menu exibe a opção **Usuários**, onde é possível
+cadastrar novos acessos informando nome, e-mail, senha e o **perfil** (colaborador
+ou técnico). O novo usuário já pode entrar com o e-mail e a senha definidos.
 
 ## API REST
 
@@ -112,6 +124,8 @@ por exemplo `tecnico`.
 | GET | `/api/indicadores` | Métricas do painel (técnico) | RF04 |
 | POST | `/api/chamados/<id>/assumir` | Técnico assume o chamado | RF04 |
 | PATCH | `/api/chamados/<id>/status` | Atualiza o status do chamado | RF04 |
+| GET | `/api/usuarios` | Lista usuários (técnico) | RF01 |
+| POST | `/api/usuarios` | Cadastra um usuário (técnico) | RF01 |
 | GET | `/api/artigos` | Lista artigos (`?q=`, `?categoria=`) | RF05 |
 
 Para enviar um anexo, o formulário usa `multipart/form-data` com os mesmos campos do

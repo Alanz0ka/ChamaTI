@@ -278,8 +278,6 @@ textarea { resize: vertical; min-height: 120px; }
 .login-card .subtitulo { text-align: center; color: var(--cor-texto-suave); margin-bottom: var(--esp-5); font-size: 14px; }
 .login-card .btn-primario { width: 100%; margin-top: var(--esp-2); }
 .login-card .esqueci { display: block; text-align: center; margin-top: var(--esp-4); font-size: 14px; }
-.login-card .dica-demo { margin-top: var(--esp-5); padding: var(--esp-3); background: #f1f5f9; border-radius: var(--raio-sm); font-size: 12.5px; color: var(--cor-texto-suave); }
-.login-card .dica-demo code { color: var(--cor-marca); }
 
 /* ---------- Detalhe do chamado ---------- */
 .detalhe-cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--esp-4); }

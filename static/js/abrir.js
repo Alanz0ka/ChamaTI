@@ -85,11 +85,12 @@ form.addEventListener("submit", async (e) => {
   botao.disabled = false;
 
   if (ok) {
-    aviso.textContent = `Chamado #${resp.chamado.id} aberto com sucesso! Redirecionando para "Meus chamados"...`;
+    aviso.textContent = `Chamado #${resp.chamado.id} aberto com sucesso! Redirecionando...`;
     aviso.className = "aviso sucesso";
     form.reset();
     anexoInfo.textContent = "Formatos aceitos: PNG, JPG, PDF · até 5 MB";
-    setTimeout(() => (window.location.href = "/meus-chamados"), 1400);
+    const destino = window.PERFIL === "tecnico" ? "/atendimento" : "/meus-chamados";
+    setTimeout(() => (window.location.href = destino), 1400);
   } else if (status === 400 && resp && resp.campos) {
     Object.entries(resp.campos).forEach(([c, m]) => {
       if (c === "anexo") {
@@ -106,7 +107,7 @@ form.addEventListener("submit", async (e) => {
 });
 
 document.getElementById("btn-cancelar").addEventListener("click", () => {
-  window.location.href = "/meus-chamados";
+  window.location.href = window.PERFIL === "tecnico" ? "/atendimento" : "/meus-chamados";
 });
 
 /* Area de anexo (ilustrativa). */

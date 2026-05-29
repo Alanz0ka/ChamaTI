@@ -12,6 +12,8 @@
     <nav>
       {% if usuario.perfil == 'tecnico' %}
         <a href="{{ url_for('pagina_atendimento') }}" class="{{ 'ativo' if request.path == '/atendimento' }}">Atendimento</a>
+        <a href="{{ url_for('pagina_abrir') }}" class="{{ 'ativo' if request.path == '/abrir' }}">Abrir chamado</a>
+        <a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.path == '/usuarios' }}">Usuários</a>
       {% else %}
         <a href="{{ url_for('pagina_abrir') }}" class="{{ 'ativo' if request.path == '/abrir' }}">Abrir chamado</a>
         <a href="{{ url_for('pagina_meus_chamados') }}" class="{{ 'ativo' if request.path == '/meus-chamados' }}">Meus chamados</a>

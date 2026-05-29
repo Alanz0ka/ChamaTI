@@ -63,5 +63,6 @@
 {% endblock %}
 
 {% block scripts %}
+<script>window.PERFIL = {{ usuario.perfil | tojson }};</script>
 <script src="{{ url_for('static', filename='js/abrir.js') }}"></script>
 {% endblock %}

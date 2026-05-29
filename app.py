@@ -61,8 +61,11 @@ ORDEM_URGENCIAS = ["Baixa", "Media", "Alta"]
 # azul = Aberto, ambar = Em analise, verde = Concluido)
 STATUS_VALIDOS = ["Aberto", "Em análise", "Concluído"]
 
-# Usuarios cadastrados (RF01) - apenas para demonstracao
-USUARIOS = {
+# Perfis de acesso (RF01)
+PERFIS_VALIDOS = {"colaborador", "tecnico"}
+
+# Usuarios iniciais (seed) - criados na 1a execucao; novos sao cadastrados no app
+USUARIOS_PADRAO = {
     "colaborador@uncisal.edu.br": {
         "senha": "123456",
         "nome": "Maria Souza",
@@ -192,9 +195,20 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS usuarios (
+                email   TEXT PRIMARY KEY,
+                nome    TEXT NOT NULL,
+                senha   TEXT NOT NULL,
+                perfil  TEXT NOT NULL
+            )
+            """
+        )
         conn.commit()
     finally:
         conn.close()
+    seed_usuarios_se_vazio()
     seed_se_vazio()
 
 
@@ -227,14 +241,33 @@ def buscar_chamado(chamado_id):
 # ---------------------------------------------------------------------------
 # Utilitarios
 # ---------------------------------------------------------------------------
+def seed_usuarios_se_vazio():
+    """Cadastra os usuarios iniciais apenas se a tabela estiver vazia."""
+    total = consultar("SELECT COUNT(*) c FROM usuarios", um=True)["c"]
+    if total:
+        return
+    for email, dados in USUARIOS_PADRAO.items():
+        executar(
+            "INSERT INTO usuarios (email, nome, senha, perfil) VALUES (?, ?, ?, ?)",
+            (email, dados["nome"], dados["senha"], dados["perfil"]),
+        )
+
+
 def encontrar_usuario(identificador):
     """Localiza um usuario por e-mail completo ou pelo usuario institucional
     (parte antes do @)."""
     identificador = (identificador or "").strip().lower()
-    for email, dados in USUARIOS.items():
-        if identificador in (email, email.split("@")[0]):
-            return {"email": email, **dados}
-    return None
+    if not identificador:
+        return None
+    row = consultar("SELECT * FROM usuarios WHERE email = ?", (identificador,), um=True)
+    if not row:
+        for r in consultar("SELECT * FROM usuarios"):
+            if r["email"].split("@")[0] == identificador:
+                row = r
+                break
+    if not row:
+        return None
+    return {"email": row["email"], "nome": row["nome"], "senha": row["senha"], "perfil": row["perfil"]}
 
 
 def formatar_duracao(td):
@@ -324,6 +357,50 @@ def api_opcoes():
     """Opcoes oficiais para os formularios, mantendo o front-end alinhado a
     validacao do back-end."""
     return jsonify({"categorias": sorted(CATEGORIAS), "urgencias": ORDEM_URGENCIAS}), 200
+
+
+# ---------------------------------------------------------------------------
+# Gestao de usuarios (somente tecnico)
+# ---------------------------------------------------------------------------
+@app.route("/api/usuarios", methods=["GET"])
+@login_obrigatorio(perfis=["tecnico"])
+def api_listar_usuarios():
+    rows = consultar("SELECT email, nome, perfil FROM usuarios ORDER BY perfil, nome")
+    return jsonify({"total": len(rows), "usuarios": [dict(r) for r in rows]}), 200
+
+
+@app.route("/api/usuarios", methods=["POST"])
+@login_obrigatorio(perfis=["tecnico"])
+def api_criar_usuario():
+    dados = request.get_json(silent=True) or {}
+    nome = (dados.get("nome") or "").strip()
+    email = (dados.get("email") or "").strip().lower()
+    senha = dados.get("senha") or ""
+    perfil = (dados.get("perfil") or "").strip()
+
+    erros = {}
+    if len(nome) < 2:
+        erros["nome"] = "Informe o nome completo."
+    if "@" not in email or len(email) < 5:
+        erros["email"] = "Informe um e-mail válido."
+    elif consultar("SELECT 1 FROM usuarios WHERE email = ?", (email,), um=True):
+        erros["email"] = "Já existe um usuário com este e-mail."
+    if len(senha) < 6:
+        erros["senha"] = "A senha deve ter ao menos 6 caracteres."
+    if perfil not in PERFIS_VALIDOS:
+        erros["perfil"] = "Selecione um perfil válido."
+
+    if erros:
+        return jsonify({"erro": "Dados invalidos", "campos": erros}), 400
+
+    executar(
+        "INSERT INTO usuarios (email, nome, senha, perfil) VALUES (?, ?, ?, ?)",
+        (email, nome, senha, perfil),
+    )
+    return jsonify({
+        "mensagem": "Usuário criado com sucesso",
+        "usuario": {"email": email, "nome": nome, "perfil": perfil},
+    }), 201
 
 
 # ---------------------------------------------------------------------------
@@ -597,6 +674,12 @@ def pagina_meus_chamados():
 @login_obrigatorio(perfis=["tecnico"])
 def pagina_atendimento():
     return render_template("atendimento.html", usuario=session["usuario"])
+
+
+@app.route("/usuarios")
+@login_obrigatorio(perfis=["tecnico"])
+def pagina_usuarios():
+    return render_template("usuarios.html", usuario=session["usuario"])
 
 
 @app.route("/chamados/<int:chamado_id>")
