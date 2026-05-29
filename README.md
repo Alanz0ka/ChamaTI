@@ -10,8 +10,9 @@ O sistema atende dois perfis de usuário:
   consulta os detalhes das próprias solicitações.
 - **Técnico de TI** — vê todos os chamados no painel (Kanban), filtra os que estão
   atribuídos a si, assume, atualiza o status e consulta o detalhe (incluindo anexos).
-  Também pode **abrir chamados** e **cadastrar novos usuários** (colaboradores ou
-  técnicos), definindo o perfil de cada um.
+  Também pode **abrir chamados**, **cadastrar novos usuários** (colaboradores ou
+  técnicos, definindo o perfil) e **manter a base de conhecimento** (criar, editar e
+  excluir artigos).
 
 ## Funcionalidades
 
@@ -21,7 +22,7 @@ O sistema atende dois perfis de usuário:
 | Abrir chamado | Registro de nova solicitação com validação e anexo (imagem/PDF) | RF02 |
 | Meus chamados | Acompanhamento, filtro por status e tela de detalhe | RF03 |
 | Atendimento | Painel do técnico: indicadores, Kanban e filtro "atribuídos a mim" | RF04 |
-| Base de conhecimento | Artigos com busca e navegação por categorias | RF05 |
+| Base de conhecimento | Consulta (busca + categorias) para todos; gestão de artigos pelo técnico | RF05 |
 
 Ao clicar em um chamado (na lista ou no Kanban), abre-se a **tela de detalhe**, que
 mostra todas as informações, a descrição completa e o anexo (imagem exibida na própria
@@ -122,6 +123,13 @@ Ao entrar como **técnico**, o menu exibe a opção **Usuários**, onde é poss�
 cadastrar novos acessos informando nome, e-mail, senha e o **perfil** (colaborador
 ou técnico). O novo usuário já pode entrar com o e-mail e a senha definidos.
 
+### Gestão da base de conhecimento
+
+Para o **colaborador**, a base de conhecimento é apenas de consulta (busca e
+navegação por categorias). O **técnico** vê, na mesma tela, as ações para **criar**,
+**editar** e **excluir** artigos; o conteúdo fica salvo no banco e é compartilhado
+com todos os usuários.
+
 ## API REST
 
 | Método | Rota | Descrição | Requisito |
@@ -140,6 +148,10 @@ ou técnico). O novo usuário já pode entrar com o e-mail e a senha definidos.
 | GET | `/api/usuarios` | Lista usuários (técnico) | RF01 |
 | POST | `/api/usuarios` | Cadastra um usuário (técnico) | RF01 |
 | GET | `/api/artigos` | Lista artigos (`?q=`, `?categoria=`) | RF05 |
+| GET | `/api/artigos/<id>` | Detalha um artigo | RF05 |
+| POST | `/api/artigos` | Cria um artigo (técnico) | RF05 |
+| PUT | `/api/artigos/<id>` | Edita um artigo (técnico) | RF05 |
+| DELETE | `/api/artigos/<id>` | Exclui um artigo (técnico) | RF05 |
 
 Para enviar um anexo, o formulário usa `multipart/form-data` com os mesmos campos do
 exemplo abaixo mais o campo `anexo` (arquivo PNG, JPG ou PDF de até 5 MB). O endpoint

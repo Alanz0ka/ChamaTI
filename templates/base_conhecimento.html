@@ -2,23 +2,67 @@
 {% block titulo %}Base de conhecimento{% endblock %}
 
 {% block conteudo %}
-<div class="cabecalho-pagina">
-  <h1>Base de conhecimento</h1>
-  <p>Encontre soluções para problemas frequentes sem precisar abrir um chamado.</p>
+<div class="cabecalho-pagina detalhe-cabecalho">
+  <div>
+    <h1>Base de conhecimento</h1>
+    <p>Encontre soluções para problemas frequentes sem precisar abrir um chamado.</p>
+  </div>
+  {% if usuario.perfil == 'tecnico' %}
+  <button class="btn btn-primario" id="btn-novo-artigo">Novo artigo</button>
+  {% endif %}
 </div>
+
+{% if usuario.perfil == 'tecnico' %}
+<div class="cartao" id="form-artigo-card" style="display:none; margin-bottom:var(--esp-5)">
+  <h2 class="secao" id="form-artigo-titulo">Novo artigo</h2>
+  <div class="aviso" id="aviso"></div>
+  <form id="form-artigo" novalidate>
+    <input type="hidden" id="artigo-id">
+    <div class="linha">
+      <div class="campo" id="campo-categoria">
+        <label for="artigo-categoria">Categoria <span class="obrigatorio">*</span></label>
+        <input type="text" id="artigo-categoria" maxlength="40" list="lista-categorias"
+               placeholder="Ex.: Acessos">
+        <datalist id="lista-categorias"></datalist>
+        <div class="mensagem-erro" data-erro="categoria"></div>
+      </div>
+      <div class="campo" id="campo-titulo">
+        <label for="artigo-titulo">Título <span class="obrigatorio">*</span></label>
+        <input type="text" id="artigo-titulo" maxlength="120"
+               placeholder="Ex.: Como redefinir a senha">
+        <div class="mensagem-erro" data-erro="titulo"></div>
+      </div>
+    </div>
+    <div class="campo" id="campo-resumo">
+      <label for="artigo-resumo">Resumo <span class="obrigatorio">*</span></label>
+      <input type="text" id="artigo-resumo" maxlength="160"
+             placeholder="Uma frase curta descrevendo o artigo">
+      <div class="mensagem-erro" data-erro="resumo"></div>
+    </div>
+    <div class="campo" id="campo-conteudo">
+      <label for="artigo-conteudo">Conteúdo <span class="obrigatorio">*</span></label>
+      <textarea id="artigo-conteudo" placeholder="Passo a passo da solução..."></textarea>
+      <div class="mensagem-erro" data-erro="conteudo"></div>
+    </div>
+    <div class="botoes">
+      <button type="button" class="btn btn-secundario" id="btn-cancelar-artigo">Cancelar</button>
+      <button type="submit" class="btn btn-primario" id="btn-salvar-artigo">Salvar</button>
+    </div>
+  </form>
+</div>
+{% endif %}
 
 <div class="busca-destaque">
   <input type="search" id="busca" placeholder="Buscar artigos (ex.: senha, VPN, impressora)...">
 </div>
 
-<div class="filtros" id="categorias">
-  <button class="filtro ativo" data-categoria="">Todas as categorias</button>
-</div>
+<div class="filtros" id="categorias"></div>
 
 <div class="lista-artigos" id="lista"></div>
 <div class="vazio" id="vazio" style="display:none">Nenhum artigo encontrado para a sua busca.</div>
 {% endblock %}
 
 {% block scripts %}
+<script>window.PERFIL = {{ usuario.perfil | tojson }};</script>
 <script src="{{ url_for('static', filename='js/base.js') }}"></script>
 {% endblock %}

@@ -263,6 +263,7 @@ textarea { resize: vertical; min-height: 120px; }
 .artigo .conteudo { display: none; margin-top: var(--esp-3); white-space: pre-line; font-size: 14px; color: var(--cor-texto); border-top: 1px solid var(--cor-borda); padding-top: var(--esp-3); }
 .artigo.aberto .conteudo { display: block; }
 .artigo .ver-mais { background: none; border: none; color: var(--cor-primaria); cursor: pointer; font-weight: 600; padding: 8px 0 0; font-size: 14px; }
+.artigo-acoes { display: flex; gap: 6px; margin-top: var(--esp-3); border-top: 1px solid var(--cor-borda); padding-top: var(--esp-3); }
 
 /* ---------- Estado vazio / avisos ---------- */
 .vazio { text-align: center; color: var(--cor-texto-suave); padding: var(--esp-6); }

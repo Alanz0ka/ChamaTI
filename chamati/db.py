@@ -3,7 +3,7 @@ import os
 import sqlite3
 from datetime import datetime, timedelta
 
-from . import config
+from . import config, conteudo
 
 
 def conectar():
@@ -67,10 +67,22 @@ def init_db():
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS artigos (
+                id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                categoria TEXT NOT NULL,
+                titulo    TEXT NOT NULL,
+                resumo    TEXT NOT NULL,
+                conteudo  TEXT NOT NULL
+            )
+            """
+        )
         conn.commit()
     finally:
         conn.close()
     seed_usuarios_se_vazio()
+    seed_artigos_se_vazio()
     seed_chamados_se_vazio()
 
 
@@ -110,6 +122,16 @@ def seed_usuarios_se_vazio():
         executar(
             "INSERT INTO usuarios (email, nome, senha, perfil) VALUES (?, ?, ?, ?)",
             (email, dados["nome"], dados["senha"], dados["perfil"]),
+        )
+
+
+def seed_artigos_se_vazio():
+    if consultar("SELECT COUNT(*) c FROM artigos", um=True)["c"]:
+        return
+    for a in conteudo.ARTIGOS:
+        executar(
+            "INSERT INTO artigos (categoria, titulo, resumo, conteudo) VALUES (?, ?, ?, ?)",
+            (a["categoria"], a["titulo"], a["resumo"], a["conteudo"]),
         )
 
 
