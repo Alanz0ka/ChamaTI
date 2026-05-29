@@ -1,6 +1,7 @@
 /* Tela 4 - Gestao e Atendimento (RF04) */
 
 const aviso = document.getElementById("aviso");
+let escopo = "todos"; // "todos" ou "meus" (atribuídos a mim)
 const COLUNAS = {
   "Aberto": "col-aberto",
   "Em análise": "col-analise",
@@ -42,20 +43,22 @@ function acoesPara(c) {
 
 function cartao(c) {
   const resp = c.responsavel_nome ? escapar(c.responsavel_nome) : "—";
+  const anexo = c.tem_anexo ? ` · ${tagAnexo()}` : "";
   return `
     <div class="card-chamado">
       <div class="topo">
         <span class="num">#${c.id}</span>
         <span class="urgencia ${classeUrgencia(c.urgencia)}">${escapar(c.urgencia)}</span>
       </div>
-      <div class="assunto">${escapar(c.assunto)}</div>
-      <div class="meta">${escapar(c.categoria)} · Responsável: ${resp}</div>
+      <div class="assunto"><a href="/chamados/${c.id}">${escapar(c.assunto)}</a></div>
+      <div class="meta">${escapar(c.categoria)} · Responsável: ${resp}${anexo}</div>
       <div class="acoes">${acoesPara(c)}</div>
     </div>`;
 }
 
 async function carregarQuadro() {
-  const { ok, dados } = await API.get("/api/chamados");
+  const url = escopo === "meus" ? "/api/chamados?responsavel=me" : "/api/chamados";
+  const { ok, dados } = await API.get(url);
   if (!ok) return;
 
   Object.values(COLUNAS).forEach((id) => (document.getElementById(id).innerHTML = ""));
@@ -97,6 +100,16 @@ document.querySelector(".kanban").addEventListener("click", async (e) => {
     avisar((resultado.dados && resultado.dados.erro) || "Não foi possível atualizar.", "erro");
     botao.disabled = false;
   }
+});
+
+/* Alternar entre todos os chamados e os atribuídos ao técnico logado. */
+document.getElementById("alternador").addEventListener("click", (e) => {
+  const botao = e.target.closest("button[data-escopo]");
+  if (!botao) return;
+  document.querySelectorAll("#alternador button").forEach((b) => b.classList.remove("ativo"));
+  botao.classList.add("ativo");
+  escopo = botao.dataset.escopo;
+  carregarQuadro();
 });
 
 atualizarTudo();

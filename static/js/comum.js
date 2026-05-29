@@ -15,7 +15,19 @@ const API = {
   get(url) { return this.req("GET", url); },
   post(url, corpo) { return this.req("POST", url, corpo); },
   patch(url, corpo) { return this.req("PATCH", url, corpo); },
+  /* Envio multipart (com arquivo): o navegador define o Content-Type. */
+  async postForm(url, formData) {
+    const resp = await fetch(url, { method: "POST", body: formData });
+    let dados = null;
+    try { dados = await resp.json(); } catch (e) { dados = null; }
+    return { ok: resp.ok, status: resp.status, dados };
+  },
 };
+
+/* Marcador de anexo reutilizado em listas e cartoes. */
+function tagAnexo() {
+  return '<span class="tag-anexo" title="Possui anexo">&#128206; anexo</span>';
+}
 
 /* Mapeia o status para a classe de badge (codificacao de cores do sistema). */
 function classeStatus(status) {

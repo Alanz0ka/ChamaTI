@@ -3,6 +3,16 @@
 const form = document.getElementById("form-chamado");
 const aviso = document.getElementById("aviso");
 const TAM_MAX = 5 * 1024 * 1024; // 5 MB
+const EXT_OK = [".png", ".jpg", ".jpeg", ".pdf"];
+
+/* Valida o anexo no cliente, espelhando o back-end. */
+function validarArquivo(arquivo) {
+  if (!arquivo) return null;
+  const nome = arquivo.name.toLowerCase();
+  if (!EXT_OK.some((e) => nome.endsWith(e))) return "Formato não aceito. Use PNG, JPG ou PDF.";
+  if (arquivo.size > TAM_MAX) return "O arquivo excede o limite de 5 MB.";
+  return null;
+}
 
 /* Preenche os selects com as opcoes oficiais do back-end (prevencao de erros). */
 async function carregarOpcoes() {
@@ -50,24 +60,45 @@ form.addEventListener("submit", async (e) => {
   };
 
   const erros = validar(dados);
-  if (Object.keys(erros).length) {
+  const arquivo = inputAnexo.files[0];
+  const erroArquivo = validarArquivo(arquivo);
+
+  if (Object.keys(erros).length || erroArquivo) {
     Object.entries(erros).forEach(([c, m]) => marcarErro(c, m));
+    if (erroArquivo) {
+      aviso.textContent = erroArquivo;
+      aviso.className = "aviso erro";
+    }
     return;
   }
 
+  const fd = new FormData();
+  fd.append("categoria", dados.categoria);
+  fd.append("urgencia", dados.urgencia);
+  fd.append("assunto", dados.assunto);
+  fd.append("descricao", dados.descricao);
+  if (arquivo) fd.append("anexo", arquivo);
+
   const botao = document.getElementById("btn-enviar");
   botao.disabled = true;
-  const { ok, status, dados: resp } = await API.post("/api/chamados", dados);
+  const { ok, status, dados: resp } = await API.postForm("/api/chamados", fd);
   botao.disabled = false;
 
   if (ok) {
     aviso.textContent = `Chamado #${resp.chamado.id} aberto com sucesso! Redirecionando para "Meus chamados"...`;
     aviso.className = "aviso sucesso";
     form.reset();
-    document.getElementById("anexo-info").textContent = "Formatos aceitos: PNG, JPG, PDF · até 5 MB";
+    anexoInfo.textContent = "Formatos aceitos: PNG, JPG, PDF · até 5 MB";
     setTimeout(() => (window.location.href = "/meus-chamados"), 1400);
   } else if (status === 400 && resp && resp.campos) {
-    Object.entries(resp.campos).forEach(([c, m]) => marcarErro(c, m));
+    Object.entries(resp.campos).forEach(([c, m]) => {
+      if (c === "anexo") {
+        aviso.textContent = m;
+        aviso.className = "aviso erro";
+      } else {
+        marcarErro(c, m);
+      }
+    });
   } else {
     aviso.textContent = (resp && resp.erro) || "Não foi possível abrir o chamado.";
     aviso.className = "aviso erro";

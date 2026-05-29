@@ -17,6 +17,11 @@ ENV/
 instance/
 .webassets-cache
 
+# ---- Dados da aplicação (gerados em runtime) ----
+*.db
+chamati.db
+uploads/
+
 # ---- Testes / cobertura ----
 .pytest_cache/
 .coverage
@@ -31,4 +36,4 @@ Thumbs.db
 *.swo
 *~
 .vscode/
-# O diretório .idea (PyCharm) é gerenciado pelo próprio .idea/.gitignore
+.idea/

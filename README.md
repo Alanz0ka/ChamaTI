@@ -6,19 +6,24 @@ Superior de Tecnologia em Sistemas para Internet da **UNCISAL**.
 
 O sistema atende dois perfis de usuário:
 
-- **Colaborador** — abre chamados e acompanha o andamento das próprias solicitações.
-- **Técnico de TI** — visualiza todos os chamados em um painel (Kanban), assume e
-  atualiza o status de cada atendimento.
+- **Colaborador** — abre chamados (com anexo opcional), acompanha o andamento e
+  consulta os detalhes das próprias solicitações.
+- **Técnico de TI** — vê todos os chamados no painel (Kanban), filtra os que estão
+  atribuídos a si, assume, atualiza o status e consulta o detalhe (incluindo anexos).
 
 ## Funcionalidades
 
 | Tela | Funcionalidade | Requisito |
 |------|----------------|-----------|
 | Login | Autenticação e controle de acesso por perfil | RF01 |
-| Abrir chamado | Registro de nova solicitação com validação | RF02 |
-| Meus chamados | Acompanhamento e filtro por status | RF03 |
-| Atendimento | Painel do técnico: indicadores + Kanban | RF04 |
+| Abrir chamado | Registro de nova solicitação com validação e anexo (imagem/PDF) | RF02 |
+| Meus chamados | Acompanhamento, filtro por status e tela de detalhe | RF03 |
+| Atendimento | Painel do técnico: indicadores, Kanban e filtro "atribuídos a mim" | RF04 |
 | Base de conhecimento | Artigos com busca e navegação por categorias | RF05 |
+
+Ao clicar em um chamado (na lista ou no Kanban), abre-se a **tela de detalhe**, que
+mostra todas as informações, a descrição completa e o anexo (imagem exibida na própria
+página ou link para o PDF).
 
 O projeto das telas seguiu princípios de **Interação Humano-Computador (IHC)**:
 heurísticas de usabilidade de Nielsen, princípios de design de Norman e da Gestalt.
@@ -30,12 +35,12 @@ prevenção de erros (campos estruturados e validação) e contraste adequado.
 
 - **Python 3** com **Flask** (API REST + renderização das páginas)
 - **HTML, CSS e JavaScript** (sem dependências de front-end)
-- Armazenamento **em memória** (para fins didáticos, sem banco de dados)
+- Persistência em **SQLite** (`chamati.db`); anexos salvos em disco (`uploads/`)
 
 ## Estrutura do projeto
 
 ```
-RegistroChamados/
+ChamaTI/
 ├── app.py                       # Aplicação Flask (API + rotas das páginas)
 ├── requirements.txt             # Dependências
 ├── templates/                   # Páginas (Jinja2)
@@ -44,10 +49,13 @@ RegistroChamados/
 │   ├── abrir_chamado.html       # Tela 2 — Abrir chamado (RF02)
 │   ├── meus_chamados.html       # Tela 3 — Meus chamados (RF03)
 │   ├── atendimento.html         # Tela 4 — Atendimento / Kanban (RF04)
+│   ├── chamado_detalhe.html     # Detalhe do chamado (com anexo)
 │   └── base_conhecimento.html   # Tela 5 — Base de conhecimento (RF05)
-└── static/
-    ├── css/styles.css           # Design system (cores, tipografia, componentes)
-    └── js/                       # Lógica de cada tela + utilitários (comum.js)
+├── static/
+│   ├── css/styles.css           # Design system (cores, tipografia, componentes)
+│   └── js/                       # Lógica de cada tela + utilitários (comum.js)
+├── chamati.db                   # Banco SQLite (criado na 1ª execução)
+└── uploads/                     # Anexos enviados (criado na 1ª execução)
 ```
 
 ## Como executar
@@ -97,13 +105,18 @@ por exemplo `tecnico`.
 | POST | `/api/logout` | Encerra a sessão | RF01 |
 | GET | `/api/sessao` | Retorna o usuário logado | RF01 |
 | GET | `/api/opcoes` | Categorias e urgências válidas | RF02 |
-| POST | `/api/chamados` | Abre um novo chamado | RF02 |
-| GET | `/api/chamados` | Lista chamados (`?meus=1`, `?status=`) | RF03 |
+| POST | `/api/chamados` | Abre um novo chamado (JSON ou multipart com anexo) | RF02 |
+| GET | `/api/chamados` | Lista chamados (`?meus=1`, `?status=`, `?responsavel=me`) | RF03/RF04 |
 | GET | `/api/chamados/<id>` | Detalha um chamado | RF03 |
+| GET | `/api/chamados/<id>/anexo` | Baixa/exibe o anexo do chamado | RF03 |
 | GET | `/api/indicadores` | Métricas do painel (técnico) | RF04 |
 | POST | `/api/chamados/<id>/assumir` | Técnico assume o chamado | RF04 |
 | PATCH | `/api/chamados/<id>/status` | Atualiza o status do chamado | RF04 |
 | GET | `/api/artigos` | Lista artigos (`?q=`, `?categoria=`) | RF05 |
+
+Para enviar um anexo, o formulário usa `multipart/form-data` com os mesmos campos do
+exemplo abaixo mais o campo `anexo` (arquivo PNG, JPG ou PDF de até 5 MB). O endpoint
+continua aceitando o corpo em JSON quando não há anexo (contrato abaixo).
 
 ### Exemplo — abrir um chamado (RF02)
 
@@ -140,10 +153,13 @@ Campos inválidos retornam `400 Bad Request` com a descrição dos erros por cam
 
 ## Observações
 
-- Os dados ficam **em memória**: ao reiniciar a aplicação, a lista volta ao estado
-  inicial, com alguns chamados de exemplo já cadastrados para demonstração.
-- Projeto de finalidade **acadêmica**; não usar em produção sem persistência em
-  banco de dados e tratamento adequado de autenticação.
+- Os dados são gravados em **SQLite** (`chamati.db`) e os anexos em `uploads/`, ambos
+  criados automaticamente na primeira execução e **mantidos entre reinícios**. Na
+  primeira vez, alguns chamados de exemplo são cadastrados para demonstração.
+- Para recomeçar do zero, basta apagar o arquivo `chamati.db` (e, opcionalmente, a
+  pasta `uploads/`); ele será recriado e populado novamente.
+- Projeto de finalidade **acadêmica**; não usar em produção sem tratamento adequado de
+  autenticação (senhas em texto puro e sessão simples são apenas para demonstração).
 
 ## Autor
 

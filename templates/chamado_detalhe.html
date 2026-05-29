@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block titulo %}Chamado #{{ chamado.id }}{% endblock %}
+
+{% set status_classe = {'Aberto':'status-aberto','Em análise':'status-analise','Concluído':'status-concluido'}.get(chamado.status, 'status-aberto') %}
+{% set urg_classe = {'Alta':'urg-alta','Media':'urg-media','Baixa':'urg-baixa'}.get(chamado.urgencia, '') %}
+
+{% block conteudo %}
+<div class="cabecalho-pagina detalhe-cabecalho">
+  <div>
+    <a class="voltar-link"
+       href="{{ url_for('pagina_atendimento') if usuario.perfil == 'tecnico' else url_for('pagina_meus_chamados') }}">&larr; Voltar</a>
+    <h1>Chamado #{{ chamado.id }}</h1>
+    <p>{{ chamado.assunto }}</p>
+  </div>
+  <span class="badge {{ status_classe }}">{{ chamado.status }}</span>
+</div>
+
+<div class="aviso" id="aviso"></div>
+
+<div class="detalhe-grid">
+  <div class="cartao">
+    <h2 class="secao">Informações</h2>
+    <dl class="campos-detalhe">
+      <div><dt>Categoria</dt><dd>{{ chamado.categoria }}</dd></div>
+      <div><dt>Urgência</dt><dd class="urgencia {{ urg_classe }}">{{ chamado.urgencia }}</dd></div>
+      <div><dt>Solicitante</dt><dd>{{ chamado.solicitante_nome }}</dd></div>
+      <div><dt>Responsável</dt><dd>{{ chamado.responsavel_nome or '—' }}</dd></div>
+      <div><dt>Aberto em</dt><dd data-data="{{ chamado.aberto_em }}"></dd></div>
+      <div><dt>Última atualização</dt><dd data-data="{{ chamado.atualizado_em }}"></dd></div>
+      {% if chamado.concluido_em %}
+      <div><dt>Concluído em</dt><dd data-data="{{ chamado.concluido_em }}"></dd></div>
+      {% endif %}
+    </dl>
+
+    <h2 class="secao">Descrição</h2>
+    <p class="descricao-completa">{{ chamado.descricao }}</p>
+  </div>
+
+  <div class="cartao">
+    <h2 class="secao">Anexo</h2>
+    {% if chamado.tem_anexo %}
+      {% if anexo_eh_imagem %}
+        <a href="{{ url_for('baixar_anexo', chamado_id=chamado.id) }}" target="_blank" rel="noopener">
+          <img class="anexo-imagem" src="{{ url_for('baixar_anexo', chamado_id=chamado.id) }}"
+               alt="Anexo do chamado: {{ chamado.anexo_nome }}">
+        </a>
+        <p class="anexo-nome">{{ chamado.anexo_nome }}</p>
+      {% else %}
+        <a class="btn btn-secundario" href="{{ url_for('baixar_anexo', chamado_id=chamado.id) }}"
+           target="_blank" rel="noopener">Abrir anexo: {{ chamado.anexo_nome }}</a>
+      {% endif %}
+    {% else %}
+      <p class="vazio" style="padding:8px 0">Nenhum anexo enviado.</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if usuario.perfil == 'tecnico' %}
+<div class="cartao acoes-detalhe">
+  <h2 class="secao">Ações do técnico</h2>
+  <div class="botoes" id="acoes-tecnico"></div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.CHAMADO = { id: {{ chamado.id }}, status: {{ chamado.status | tojson }} };
+  window.PERFIL = {{ usuario.perfil | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/detalhe.js') }}"></script>
+{% endblock %}

@@ -3,10 +3,12 @@ ChamaTI - Sistema Web para Gerenciamento de Chamados de Suporte de TI
 
 Funcionalidades (Ação Curricular de Extensão 2):
     RF01 - Autenticacao e Controle de Acesso (login/logout por perfil)
-    RF02 - Abertura de Chamado
-    RF03 - Acompanhamento de Chamados
+    RF02 - Abertura de Chamado (com anexo opcional: imagem ou PDF)
+    RF03 - Acompanhamento de Chamados (lista, filtro e detalhe)
     RF04 - Gestao e Atendimento (painel do tecnico: indicadores e Kanban)
     RF05 - Base de Conhecimento
+
+Persistencia: banco de dados SQLite (chamati.db); anexos salvos em uploads/.
 
 Execucao:
     pip install flask
@@ -19,34 +21,43 @@ Usuarios de demonstracao (senha: 123456):
     tecnico@uncisal.edu.br      -> perfil tecnico
 """
 import os
+import sqlite3
+import uuid
 from datetime import datetime, timedelta
 from functools import wraps
 
 from flask import (
     Flask,
+    abort,
     jsonify,
     redirect,
     render_template,
     request,
+    send_from_directory,
     session,
     url_for,
 )
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = "chamati-chave-de-desenvolvimento"
 
-# ---------------------------------------------------------------------------
-# Armazenamento em memoria (em producao: banco de dados)
-# ---------------------------------------------------------------------------
-chamados = []
-proximo_id = 1
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "chamati.db")
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+
+# Anexos: extensoes aceitas e tamanho maximo (5 MB)
+EXTENSOES_OK = {".png", ".jpg", ".jpeg", ".pdf"}
+EXTENSOES_IMAGEM = {".png", ".jpg", ".jpeg"}
+TAM_MAX = 5 * 1024 * 1024
+app.config["MAX_CONTENT_LENGTH"] = 8 * 1024 * 1024  # margem para o arquivo + campos
 
 # Valores aceitos para validacao (RF02)
 CATEGORIAS = {"Hardware", "Software", "Acessos", "Rede e VPN", "E-mail"}
 URGENCIAS = {"Baixa", "Media", "Alta"}
 ORDEM_URGENCIAS = ["Baixa", "Media", "Alta"]
 
-# Status do fluxo de atendimento (codificacao de cores definida no front-end:
+# Status do fluxo de atendimento (codificacao de cores no front-end:
 # azul = Aberto, ambar = Em analise, verde = Concluido)
 STATUS_VALIDOS = ["Aberto", "Em análise", "Concluído"]
 
@@ -64,7 +75,7 @@ USUARIOS = {
     },
 }
 
-# Base de conhecimento (RF05)
+# Base de conhecimento (RF05) - conteudo estatico
 ARTIGOS = [
     {
         "id": 1,
@@ -129,6 +140,91 @@ ARTIGOS = [
 
 
 # ---------------------------------------------------------------------------
+# Banco de dados (SQLite)
+# ---------------------------------------------------------------------------
+def conectar():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def consultar(sql, params=(), um=False):
+    conn = conectar()
+    try:
+        cur = conn.execute(sql, params)
+        return cur.fetchone() if um else cur.fetchall()
+    finally:
+        conn.close()
+
+
+def executar(sql, params=()):
+    conn = conectar()
+    try:
+        cur = conn.execute(sql, params)
+        conn.commit()
+        return cur.lastrowid
+    finally:
+        conn.close()
+
+
+def init_db():
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    conn = conectar()
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS chamados (
+                id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                categoria        TEXT NOT NULL,
+                urgencia         TEXT NOT NULL,
+                assunto          TEXT NOT NULL,
+                descricao        TEXT NOT NULL,
+                status           TEXT NOT NULL DEFAULT 'Aberto',
+                aberto_em        TEXT NOT NULL,
+                atualizado_em    TEXT NOT NULL,
+                concluido_em     TEXT,
+                solicitante      TEXT,
+                solicitante_nome TEXT,
+                responsavel      TEXT,
+                responsavel_nome TEXT,
+                anexo            TEXT,
+                anexo_nome       TEXT
+            )
+            """
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    seed_se_vazio()
+
+
+def chamado_dict(row):
+    """Converte uma linha do banco no formato esperado pela API/telas.
+    O caminho interno do anexo nao e exposto; em vez disso usa-se tem_anexo."""
+    return {
+        "id": row["id"],
+        "categoria": row["categoria"],
+        "urgencia": row["urgencia"],
+        "assunto": row["assunto"],
+        "descricao": row["descricao"],
+        "status": row["status"],
+        "aberto_em": row["aberto_em"],
+        "atualizado_em": row["atualizado_em"],
+        "concluido_em": row["concluido_em"],
+        "solicitante": row["solicitante"],
+        "solicitante_nome": row["solicitante_nome"],
+        "responsavel": row["responsavel"],
+        "responsavel_nome": row["responsavel_nome"],
+        "tem_anexo": bool(row["anexo"]),
+        "anexo_nome": row["anexo_nome"],
+    }
+
+
+def buscar_chamado(chamado_id):
+    return consultar("SELECT * FROM chamados WHERE id = ?", (chamado_id,), um=True)
+
+
+# ---------------------------------------------------------------------------
 # Utilitarios
 # ---------------------------------------------------------------------------
 def encontrar_usuario(identificador):
@@ -141,10 +237,6 @@ def encontrar_usuario(identificador):
     return None
 
 
-def buscar_chamado(chamado_id):
-    return next((c for c in chamados if c["id"] == chamado_id), None)
-
-
 def formatar_duracao(td):
     total_min = int(td.total_seconds() // 60)
     horas, minutos = divmod(total_min, 60)
@@ -153,6 +245,21 @@ def formatar_duracao(td):
     if horas:
         return f"{horas}h"
     return f"{minutos}min"
+
+
+def validar_anexo(arquivo):
+    """Retorna (extensao, mensagem_de_erro). Extensao None se nao houver arquivo."""
+    if not arquivo or not arquivo.filename:
+        return None, None
+    ext = os.path.splitext(arquivo.filename)[1].lower()
+    if ext not in EXTENSOES_OK:
+        return None, "Formato não aceito. Use PNG, JPG ou PDF."
+    arquivo.seek(0, os.SEEK_END)
+    tamanho = arquivo.tell()
+    arquivo.seek(0)
+    if tamanho > TAM_MAX:
+        return None, "O arquivo excede o limite de 5 MB."
+    return ext, None
 
 
 def login_obrigatorio(perfis=None):
@@ -173,6 +280,11 @@ def login_obrigatorio(perfis=None):
             return view(*args, **kwargs)
         return wrapper
     return decorador
+
+
+def pode_ver_chamado(row, usuario):
+    """Tecnico ve qualquer chamado; colaborador apenas os proprios."""
+    return usuario["perfil"] == "tecnico" or row["solicitante"] == usuario["email"]
 
 
 # ---------------------------------------------------------------------------
@@ -219,8 +331,16 @@ def api_opcoes():
 # ---------------------------------------------------------------------------
 @app.route("/api/chamados", methods=["POST"])
 def abrir_chamado():
-    """Abre um novo chamado de suporte (RF02)."""
-    dados = request.get_json(silent=True) or {}
+    """Abre um novo chamado de suporte (RF02).
+
+    Aceita JSON (contrato documentado) ou multipart/form-data quando ha anexo.
+    """
+    if request.content_type and "application/json" in request.content_type:
+        dados = request.get_json(silent=True) or {}
+        arquivo = None
+    else:
+        dados = request.form
+        arquivo = request.files.get("anexo")
 
     # Validacao dos campos obrigatorios
     erros = {}
@@ -238,31 +358,40 @@ def abrir_chamado():
     if len(descricao) < 10:
         erros["descricao"] = "A descricao deve ter ao menos 10 caracteres."
 
+    ext, erro_anexo = validar_anexo(arquivo)
+    if erro_anexo:
+        erros["anexo"] = erro_anexo
+
     if erros:
         return jsonify({"erro": "Dados invalidos", "campos": erros}), 400
 
-    global proximo_id
+    # Salva o anexo, se houver
+    anexo_armazenado = None
+    anexo_nome = None
+    if ext:
+        anexo_armazenado = uuid.uuid4().hex + ext
+        anexo_nome = secure_filename(arquivo.filename) or ("anexo" + ext)
+        arquivo.save(os.path.join(UPLOAD_DIR, anexo_armazenado))
+
     usuario = session.get("usuario")
     agora = datetime.now().isoformat(timespec="seconds")
-    chamado = {
-        "id": proximo_id,
-        "categoria": categoria,
-        "urgencia": urgencia,
-        "assunto": assunto,
-        "descricao": descricao,
-        "status": "Aberto",
-        "aberto_em": agora,
-        "atualizado_em": agora,
-        "concluido_em": None,
-        "solicitante": usuario["email"] if usuario else None,
-        "solicitante_nome": usuario["nome"] if usuario else "Visitante",
-        "responsavel": None,
-        "responsavel_nome": None,
-    }
-    chamados.append(chamado)
-    proximo_id += 1
-
-    return jsonify({"mensagem": "Chamado aberto com sucesso", "chamado": chamado}), 201
+    novo_id = executar(
+        """
+        INSERT INTO chamados
+            (categoria, urgencia, assunto, descricao, status, aberto_em,
+             atualizado_em, concluido_em, solicitante, solicitante_nome,
+             responsavel, responsavel_nome, anexo, anexo_nome)
+        VALUES (?, ?, ?, ?, 'Aberto', ?, ?, NULL, ?, ?, NULL, NULL, ?, ?)
+        """,
+        (
+            categoria, urgencia, assunto, descricao, agora, agora,
+            usuario["email"] if usuario else None,
+            usuario["nome"] if usuario else "Visitante",
+            anexo_armazenado, anexo_nome,
+        ),
+    )
+    row = buscar_chamado(novo_id)
+    return jsonify({"mensagem": "Chamado aberto com sucesso", "chamado": chamado_dict(row)}), 201
 
 
 # ---------------------------------------------------------------------------
@@ -270,29 +399,55 @@ def abrir_chamado():
 # ---------------------------------------------------------------------------
 @app.route("/api/chamados", methods=["GET"])
 def listar_chamados():
-    """Lista os chamados, com filtro opcional por status (RF03) e por
-    solicitante logado (?meus=1)."""
+    """Lista os chamados (RF03). Filtros opcionais:
+    ?status=  | ?meus=1 (solicitante logado) | ?responsavel=me (tecnico logado)."""
     status = request.args.get("status")
     apenas_meus = request.args.get("meus") in ("1", "true", "True")
+    responsavel_me = request.args.get("responsavel") == "me"
 
-    resultado = chamados
-    if apenas_meus:
+    clausulas, params = [], []
+    if apenas_meus or responsavel_me:
         usuario = session.get("usuario")
         if not usuario:
             return jsonify({"erro": "Não autenticado"}), 401
-        resultado = [c for c in resultado if c.get("solicitante") == usuario["email"]]
+        if apenas_meus:
+            clausulas.append("solicitante = ?")
+            params.append(usuario["email"])
+        if responsavel_me:
+            clausulas.append("responsavel = ?")
+            params.append(usuario["email"])
     if status:
-        resultado = [c for c in resultado if c["status"].lower() == status.lower()]
+        clausulas.append("LOWER(status) = LOWER(?)")
+        params.append(status)
 
-    return jsonify({"total": len(resultado), "chamados": resultado}), 200
+    sql = "SELECT * FROM chamados"
+    if clausulas:
+        sql += " WHERE " + " AND ".join(clausulas)
+    sql += " ORDER BY id DESC"
+
+    rows = consultar(sql, params)
+    return jsonify({"total": len(rows), "chamados": [chamado_dict(r) for r in rows]}), 200
 
 
 @app.route("/api/chamados/<int:chamado_id>", methods=["GET"])
 def obter_chamado(chamado_id):
-    chamado = buscar_chamado(chamado_id)
-    if not chamado:
+    row = buscar_chamado(chamado_id)
+    if not row:
         return jsonify({"erro": "Chamado não encontrado"}), 404
-    return jsonify(chamado), 200
+    return jsonify(chamado_dict(row)), 200
+
+
+@app.route("/api/chamados/<int:chamado_id>/anexo", methods=["GET"])
+@login_obrigatorio()
+def baixar_anexo(chamado_id):
+    row = buscar_chamado(chamado_id)
+    if not row or not row["anexo"]:
+        abort(404)
+    if not pode_ver_chamado(row, session["usuario"]):
+        abort(403)
+    return send_from_directory(
+        UPLOAD_DIR, row["anexo"], download_name=row["anexo_nome"] or row["anexo"]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -301,13 +456,19 @@ def obter_chamado(chamado_id):
 @app.route("/api/indicadores", methods=["GET"])
 @login_obrigatorio(perfis=["tecnico"])
 def indicadores():
-    pendentes = sum(1 for c in chamados if c["status"] == "Aberto")
-    em_analise = sum(1 for c in chamados if c["status"] == "Em análise")
-    concluidos = [c for c in chamados if c["status"] == "Concluído"]
+    pendentes = consultar(
+        "SELECT COUNT(*) c FROM chamados WHERE status = 'Aberto'", um=True
+    )["c"]
+    em_analise = consultar(
+        "SELECT COUNT(*) c FROM chamados WHERE status = 'Em análise'", um=True
+    )["c"]
+    concluidos = consultar(
+        "SELECT aberto_em, concluido_em FROM chamados WHERE status = 'Concluído'"
+    )
 
     duracoes = []
     for c in concluidos:
-        if c.get("aberto_em") and c.get("concluido_em"):
+        if c["aberto_em"] and c["concluido_em"]:
             inicio = datetime.fromisoformat(c["aberto_em"])
             fim = datetime.fromisoformat(c["concluido_em"])
             duracoes.append(fim - inicio)
@@ -329,18 +490,20 @@ def indicadores():
 @app.route("/api/chamados/<int:chamado_id>/assumir", methods=["POST"])
 @login_obrigatorio(perfis=["tecnico"])
 def assumir_chamado(chamado_id):
-    chamado = buscar_chamado(chamado_id)
-    if not chamado:
+    row = buscar_chamado(chamado_id)
+    if not row:
         return jsonify({"erro": "Chamado não encontrado"}), 404
 
     usuario = session["usuario"]
-    chamado["responsavel"] = usuario["email"]
-    chamado["responsavel_nome"] = usuario["nome"]
-    if chamado["status"] == "Aberto":
-        chamado["status"] = "Em análise"
-    chamado["atualizado_em"] = datetime.now().isoformat(timespec="seconds")
-
-    return jsonify({"mensagem": "Chamado assumido", "chamado": chamado}), 200
+    novo_status = "Em análise" if row["status"] == "Aberto" else row["status"]
+    executar(
+        """UPDATE chamados
+           SET responsavel = ?, responsavel_nome = ?, status = ?, atualizado_em = ?
+           WHERE id = ?""",
+        (usuario["email"], usuario["nome"], novo_status,
+         datetime.now().isoformat(timespec="seconds"), chamado_id),
+    )
+    return jsonify({"mensagem": "Chamado assumido", "chamado": chamado_dict(buscar_chamado(chamado_id))}), 200
 
 
 @app.route("/api/chamados/<int:chamado_id>/status", methods=["PATCH", "PUT"])
@@ -352,22 +515,29 @@ def atualizar_status(chamado_id):
     if novo_status not in STATUS_VALIDOS:
         return jsonify({"erro": "Status inválido", "validos": STATUS_VALIDOS}), 400
 
-    chamado = buscar_chamado(chamado_id)
-    if not chamado:
+    row = buscar_chamado(chamado_id)
+    if not row:
         return jsonify({"erro": "Chamado não encontrado"}), 404
 
     agora = datetime.now().isoformat(timespec="seconds")
-    chamado["status"] = novo_status
-    chamado["atualizado_em"] = agora
-    chamado["concluido_em"] = agora if novo_status == "Concluído" else None
+    concluido_em = agora if novo_status == "Concluído" else None
 
     # Ao mover para o fluxo de atendimento, garante um responsavel.
-    if novo_status in ("Em análise", "Concluído") and not chamado.get("responsavel"):
+    responsavel = row["responsavel"]
+    responsavel_nome = row["responsavel_nome"]
+    if novo_status in ("Em análise", "Concluído") and not responsavel:
         usuario = session["usuario"]
-        chamado["responsavel"] = usuario["email"]
-        chamado["responsavel_nome"] = usuario["nome"]
+        responsavel = usuario["email"]
+        responsavel_nome = usuario["nome"]
 
-    return jsonify({"mensagem": "Status atualizado", "chamado": chamado}), 200
+    executar(
+        """UPDATE chamados
+           SET status = ?, atualizado_em = ?, concluido_em = ?,
+               responsavel = ?, responsavel_nome = ?
+           WHERE id = ?""",
+        (novo_status, agora, concluido_em, responsavel, responsavel_nome, chamado_id),
+    )
+    return jsonify({"mensagem": "Status atualizado", "chamado": chamado_dict(buscar_chamado(chamado_id))}), 200
 
 
 # ---------------------------------------------------------------------------
@@ -429,6 +599,27 @@ def pagina_atendimento():
     return render_template("atendimento.html", usuario=session["usuario"])
 
 
+@app.route("/chamados/<int:chamado_id>")
+@login_obrigatorio()
+def pagina_chamado(chamado_id):
+    row = buscar_chamado(chamado_id)
+    if not row:
+        abort(404)
+    usuario = session["usuario"]
+    if not pode_ver_chamado(row, usuario):
+        return redirect(url_for("index"))
+    chamado = chamado_dict(row)
+    anexo_eh_imagem = bool(
+        row["anexo"] and os.path.splitext(row["anexo"])[1].lower() in EXTENSOES_IMAGEM
+    )
+    return render_template(
+        "chamado_detalhe.html",
+        usuario=usuario,
+        chamado=chamado,
+        anexo_eh_imagem=anexo_eh_imagem,
+    )
+
+
 @app.route("/base")
 @login_obrigatorio()
 def pagina_base():
@@ -438,9 +629,12 @@ def pagina_base():
 # ---------------------------------------------------------------------------
 # Dados de demonstracao
 # ---------------------------------------------------------------------------
-def carregar_dados_demo():
-    """Popula chamados de exemplo para a apresentacao."""
-    global proximo_id
+def seed_se_vazio():
+    """Popula chamados de exemplo apenas se a tabela estiver vazia."""
+    total = consultar("SELECT COUNT(*) c FROM chamados", um=True)["c"]
+    if total:
+        return
+
     agora = datetime.now()
     # (categoria, urgencia, assunto, descricao, status, horas_atras, duracao_horas)
     exemplos = [
@@ -477,26 +671,30 @@ def carregar_dados_demo():
             concluido_em = aberto_em + timedelta(hours=duracao)
             atualizado_em = concluido_em
 
-        chamados.append({
-            "id": proximo_id,
-            "categoria": categoria,
-            "urgencia": urgencia,
-            "assunto": assunto,
-            "descricao": descricao,
-            "status": status,
-            "aberto_em": aberto_em.isoformat(timespec="seconds"),
-            "atualizado_em": atualizado_em.isoformat(timespec="seconds"),
-            "concluido_em": concluido_em.isoformat(timespec="seconds") if concluido_em else None,
-            "solicitante": "colaborador@uncisal.edu.br",
-            "solicitante_nome": "Maria Souza",
-            "responsavel": responsavel,
-            "responsavel_nome": responsavel_nome,
-        })
-        proximo_id += 1
+        executar(
+            """
+            INSERT INTO chamados
+                (categoria, urgencia, assunto, descricao, status, aberto_em,
+                 atualizado_em, concluido_em, solicitante, solicitante_nome,
+                 responsavel, responsavel_nome, anexo, anexo_nome)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+            """,
+            (
+                categoria, urgencia, assunto, descricao, status,
+                aberto_em.isoformat(timespec="seconds"),
+                atualizado_em.isoformat(timespec="seconds"),
+                concluido_em.isoformat(timespec="seconds") if concluido_em else None,
+                "colaborador@uncisal.edu.br", "Maria Souza",
+                responsavel, responsavel_nome,
+            ),
+        )
+
+
+# Inicializa o banco assim que o modulo e carregado (idempotente).
+init_db()
 
 
 if __name__ == "__main__":
-    carregar_dados_demo()
     # No macOS a porta 5000 costuma ser usada pelo "AirPlay Receiver".
     # Defina a variavel PORT para usar outra porta, ex.: PORT=5001 python app.py
     porta = int(os.environ.get("PORT", "5000"))
