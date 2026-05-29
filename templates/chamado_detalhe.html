@@ -8,7 +8,7 @@
 <div class="cabecalho-pagina detalhe-cabecalho">
   <div>
     <a class="voltar-link"
-       href="{{ url_for('pagina_atendimento') if usuario.perfil == 'tecnico' else url_for('pagina_meus_chamados') }}">&larr; Voltar</a>
+       href="{{ url_for('paginas.pagina_atendimento') if usuario.perfil == 'tecnico' else url_for('paginas.pagina_meus_chamados') }}">&larr; Voltar</a>
     <h1>Chamado #{{ chamado.id }}</h1>
     <p>{{ chamado.assunto }}</p>
   </div>
@@ -40,13 +40,13 @@
     <h2 class="secao">Anexo</h2>
     {% if chamado.tem_anexo %}
       {% if anexo_eh_imagem %}
-        <a href="{{ url_for('baixar_anexo', chamado_id=chamado.id) }}" target="_blank" rel="noopener">
-          <img class="anexo-imagem" src="{{ url_for('baixar_anexo', chamado_id=chamado.id) }}"
+        <a href="{{ url_for('chamados.baixar_anexo', chamado_id=chamado.id) }}" target="_blank" rel="noopener">
+          <img class="anexo-imagem" src="{{ url_for('chamados.baixar_anexo', chamado_id=chamado.id) }}"
                alt="Anexo do chamado: {{ chamado.anexo_nome }}">
         </a>
         <p class="anexo-nome">{{ chamado.anexo_nome }}</p>
       {% else %}
-        <a class="btn btn-secundario" href="{{ url_for('baixar_anexo', chamado_id=chamado.id) }}"
+        <a class="btn btn-secundario" href="{{ url_for('chamados.baixar_anexo', chamado_id=chamado.id) }}"
            target="_blank" rel="noopener">Abrir anexo: {{ chamado.anexo_nome }}</a>
       {% endif %}
     {% else %}

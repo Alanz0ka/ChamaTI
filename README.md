@@ -43,8 +43,21 @@ prevenção de erros (campos estruturados e validação) e contraste adequado.
 
 ```
 ChamaTI/
-├── app.py                       # Aplicação Flask (API + rotas das páginas)
+├── app.py                       # Ponto de entrada (cria o app via fábrica e executa)
 ├── requirements.txt             # Dependências
+├── chamati/                     # Pacote da aplicação
+│   ├── __init__.py              # create_app(): fábrica que registra os blueprints
+│   ├── config.py                # Constantes, caminhos e usuários iniciais
+│   ├── db.py                    # Conexão SQLite, helpers, init_db e dados de demonstração
+│   ├── auth.py                  # login_obrigatorio, encontrar_usuario, pode_ver_chamado
+│   ├── utils.py                 # Funções utilitárias (duração, validação de anexo)
+│   ├── conteudo.py              # Artigos da base de conhecimento (RF05)
+│   └── blueprints/              # Rotas agrupadas por área
+│       ├── paginas.py           # Rotas das telas (HTML)
+│       ├── auth_api.py          # Login, logout, sessão e opções (RF01)
+│       ├── usuarios.py          # Cadastro/listagem de usuários (técnico)
+│       ├── chamados.py          # Chamados: RF02/RF03/RF04 + anexo + indicadores
+│       └── artigos.py           # Base de conhecimento (RF05)
 ├── templates/                   # Páginas (Jinja2)
 │   ├── base.html                # Layout comum (barra de navegação)
 │   ├── login.html               # Tela 1 — Login (RF01)

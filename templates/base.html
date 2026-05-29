@@ -8,17 +8,17 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="marca" href="{{ url_for('index') }}">Chama<span class="ponto">TI</span></a>
+    <a class="marca" href="{{ url_for('paginas.index') }}">Chama<span class="ponto">TI</span></a>
     <nav>
       {% if usuario.perfil == 'tecnico' %}
-        <a href="{{ url_for('pagina_atendimento') }}" class="{{ 'ativo' if request.path == '/atendimento' }}">Atendimento</a>
-        <a href="{{ url_for('pagina_abrir') }}" class="{{ 'ativo' if request.path == '/abrir' }}">Abrir chamado</a>
-        <a href="{{ url_for('pagina_usuarios') }}" class="{{ 'ativo' if request.path == '/usuarios' }}">Usuários</a>
+        <a href="{{ url_for('paginas.pagina_atendimento') }}" class="{{ 'ativo' if request.path == '/atendimento' }}">Atendimento</a>
+        <a href="{{ url_for('paginas.pagina_abrir') }}" class="{{ 'ativo' if request.path == '/abrir' }}">Abrir chamado</a>
+        <a href="{{ url_for('paginas.pagina_usuarios') }}" class="{{ 'ativo' if request.path == '/usuarios' }}">Usuários</a>
       {% else %}
-        <a href="{{ url_for('pagina_abrir') }}" class="{{ 'ativo' if request.path == '/abrir' }}">Abrir chamado</a>
-        <a href="{{ url_for('pagina_meus_chamados') }}" class="{{ 'ativo' if request.path == '/meus-chamados' }}">Meus chamados</a>
+        <a href="{{ url_for('paginas.pagina_abrir') }}" class="{{ 'ativo' if request.path == '/abrir' }}">Abrir chamado</a>
+        <a href="{{ url_for('paginas.pagina_meus_chamados') }}" class="{{ 'ativo' if request.path == '/meus-chamados' }}">Meus chamados</a>
       {% endif %}
-      <a href="{{ url_for('pagina_base') }}" class="{{ 'ativo' if request.path == '/base' }}">Base de conhecimento</a>
+      <a href="{{ url_for('paginas.pagina_base') }}" class="{{ 'ativo' if request.path == '/base' }}">Base de conhecimento</a>
     </nav>
     <div class="usuario">
       <div>
