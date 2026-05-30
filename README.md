@@ -132,37 +132,58 @@ com todos os usuários.
 
 ## API REST
 
-| Método | Rota | Descrição | Requisito |
-|--------|------|-----------|-----------|
-| POST | `/api/login` | Autentica o usuário | RF01 |
-| POST | `/api/logout` | Encerra a sessão | RF01 |
-| GET | `/api/sessao` | Retorna o usuário logado | RF01 |
-| GET | `/api/opcoes` | Categorias e urgências válidas | RF02 |
-| POST | `/api/chamados` | Abre um novo chamado (JSON ou multipart com anexo) | RF02 |
-| GET | `/api/chamados` | Lista chamados (`?meus=1`, `?status=`, `?responsavel=me`) | RF03/RF04 |
-| GET | `/api/chamados/<id>` | Detalha um chamado | RF03 |
-| GET | `/api/chamados/<id>/anexo` | Baixa/exibe o anexo do chamado | RF03 |
-| GET | `/api/indicadores` | Métricas do painel (técnico) | RF04 |
-| POST | `/api/chamados/<id>/assumir` | Técnico assume o chamado | RF04 |
-| PATCH | `/api/chamados/<id>/status` | Atualiza o status do chamado | RF04 |
-| GET | `/api/usuarios` | Lista usuários (técnico) | RF01 |
-| POST | `/api/usuarios` | Cadastra um usuário (técnico) | RF01 |
-| GET | `/api/artigos` | Lista artigos (`?q=`, `?categoria=`) | RF05 |
-| GET | `/api/artigos/<id>` | Detalha um artigo | RF05 |
-| POST | `/api/artigos` | Cria um artigo (técnico) | RF05 |
-| PUT | `/api/artigos/<id>` | Edita um artigo (técnico) | RF05 |
-| DELETE | `/api/artigos/<id>` | Exclui um artigo (técnico) | RF05 |
+| Método | Rota | Corpo | Descrição | Requisito |
+|--------|------|-------|-----------|-----------|
+| POST | `/api/login` | JSON | Autentica o usuário | RF01 |
+| POST | `/api/logout` | — | Encerra a sessão | RF01 |
+| GET | `/api/sessao` | — | Retorna o usuário logado | RF01 |
+| GET | `/api/opcoes` | — | Categorias e urgências válidas | RF02 |
+| POST | `/api/chamados` | JSON · multipart | Abre um novo chamado (multipart quando há anexo) | RF02 |
+| GET | `/api/chamados` | — | Lista chamados (`?meus=1`, `?status=`, `?responsavel=me`) | RF03/RF04 |
+| GET | `/api/chamados/<id>` | — | Detalha um chamado | RF03 |
+| GET | `/api/chamados/<id>/anexo` | — | Baixa/exibe o anexo do chamado | RF03 |
+| GET | `/api/indicadores` | — | Métricas do painel (técnico) | RF04 |
+| POST | `/api/chamados/<id>/assumir` | — | Técnico assume o chamado | RF04 |
+| PATCH | `/api/chamados/<id>/status` | JSON | Atualiza o status do chamado | RF04 |
+| GET | `/api/usuarios` | — | Lista usuários (técnico) | RF01 |
+| POST | `/api/usuarios` | JSON | Cadastra um usuário (técnico) | RF01 |
+| GET | `/api/artigos` | — | Lista artigos (`?q=`, `?categoria=`) | RF05 |
+| GET | `/api/artigos/<id>` | — | Detalha um artigo | RF05 |
+| POST | `/api/artigos` | JSON | Cria um artigo (técnico) | RF05 |
+| PUT | `/api/artigos/<id>` | JSON | Edita um artigo (técnico) | RF05 |
+| DELETE | `/api/artigos/<id>` | — | Exclui um artigo (técnico) | RF05 |
 
-Para enviar um anexo, o formulário usa `multipart/form-data` com os mesmos campos do
-exemplo abaixo mais o campo `anexo` (arquivo PNG, JPG ou PDF de até 5 MB). O endpoint
-continua aceitando o corpo em JSON quando não há anexo (contrato abaixo).
+### Tipos de corpo das requisições
 
-### Exemplo — abrir um chamado (RF02)
+As rotas de escrita usam **JSON** (`application/json`) — no Insomnia/Postman, selecione
+**Body → JSON** e cole o conteúdo dos blocos abaixo. A única exceção é a abertura de
+chamado **com anexo**, que exige **`multipart/form-data`** (JSON não transporta
+arquivos); nesse caso, use **Body → Multipart Form**.
 
-```http
-POST /api/chamados
-Content-Type: application/json
+> **Anexo** — campo `anexo`, arquivo **PNG, JPG/JPEG ou PDF** de até **5 MB**. As
+> imagens são exibidas na tela de detalhe; o PDF vira um link para download.
 
+> **Sessão** — a autenticação é por **cookie**. Envie primeiro um `POST /api/login`; o
+> Insomnia/Postman guarda o cookie automaticamente e o reutiliza nas chamadas seguintes.
+
+### Corpos JSON (Body → JSON)
+
+Cada bloco abaixo é um JSON pronto para copiar e colar.
+
+**`POST /api/login`** — autentica (aceita `usuario`, a parte antes do `@`, ou `email`):
+
+```json
+{
+  "usuario": "tecnico",
+  "senha": "123456"
+}
+```
+
+**`POST /api/chamados`** — abre um chamado sem anexo.
+`categoria`: `Hardware` · `Software` · `Acessos` · `Rede e VPN` · `E-mail`.
+`urgencia`: `Baixa` · `Media` · `Alta` (sem acento). `assunto` ≥ 5 e `descricao` ≥ 10 caracteres:
+
+```json
 {
   "categoria": "Software",
   "urgencia": "Alta",
@@ -171,7 +192,55 @@ Content-Type: application/json
 }
 ```
 
-Resposta `201 Created`:
+**`PATCH /api/chamados/<id>/status`** — atualiza o status
+(`Aberto`, `Em análise` ou `Concluído`, com acento):
+
+```json
+{
+  "status": "Em análise"
+}
+```
+
+**`POST /api/usuarios`** (técnico) — cadastra usuário.
+`perfil`: `colaborador` ou `tecnico`; `senha` ≥ 6 caracteres:
+
+```json
+{
+  "nome": "Ana Pereira",
+  "email": "ana@uncisal.edu.br",
+  "senha": "segredo123",
+  "perfil": "colaborador"
+}
+```
+
+**`POST /api/artigos`** e **`PUT /api/artigos/<id>`** (técnico) — cria/edita artigo:
+
+```json
+{
+  "categoria": "Software",
+  "titulo": "Como redefinir a senha",
+  "resumo": "Passo a passo da redefinicao.",
+  "conteudo": "1. Acesse o portal e clique em Esqueci a senha..."
+}
+```
+
+### Abrir chamado com anexo (Body → Multipart Form)
+
+Quando houver arquivo, **não use JSON**: selecione **Body → Multipart Form** e preencha
+os campos abaixo. Não defina o `Content-Type` à mão — o cliente preenche o `boundary`:
+
+| Campo | Tipo | Exemplo |
+|-------|------|---------|
+| `categoria` | Text | `Hardware` |
+| `urgencia` | Text | `Media` |
+| `assunto` | Text | `Monitor sem imagem` |
+| `descricao` | Text | `O monitor da estacao 12 nao exibe nada ao ligar.` |
+| `anexo` | **File** | selecione um PNG, JPG/JPEG ou PDF (até 5 MB) |
+
+### Resposta — `201 Created`
+
+Tanto em JSON quanto em multipart, a abertura responde com o chamado criado. Com anexo,
+`tem_anexo` vem `true` e `anexo_nome` preenchido:
 
 ```json
 {
@@ -183,12 +252,16 @@ Resposta `201 Created`:
     "assunto": "Erro ao acessar o sistema de folha de ponto",
     "descricao": "Recebo a mensagem de usuario ou senha invalidos.",
     "status": "Aberto",
-    "aberto_em": "2026-05-28T10:42:11"
+    "aberto_em": "2026-05-28T10:42:11",
+    "tem_anexo": false,
+    "anexo_nome": null
   }
 }
 ```
 
-Campos inválidos retornam `400 Bad Request` com a descrição dos erros por campo.
+Campos inválidos — categoria/urgência fora da lista, assunto < 5 ou descrição < 10
+caracteres, anexo em formato ou tamanho não aceito — retornam `400 Bad Request` com os
+erros por campo.
 
 ## Observações
 
